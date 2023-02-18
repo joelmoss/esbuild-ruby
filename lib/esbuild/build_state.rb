@@ -9,27 +9,31 @@ module Esbuild
 
     def stop
       return unless @watch_id
+
       @service.stop_watch(@watch_id)
       @watch_id = nil
     end
 
     def dispose
       return unless @rebuild_id
-      res = @service.send_request("command" => "rebuild-dispose", "rebuildID" => @rebuild_id)
+
+      res = @service.send_request('command' => 'rebuild-dispose', 'rebuildID' => @rebuild_id)
       @rebuild_id = nil
       res
     end
 
     def rebuild
-      raise "Cannot rebuild" if @rebuild_id.nil?
-      rebuild_response = @service.send_request("command" => "rebuild", "rebuildID" => @rebuild_id)
+      raise 'Cannot rebuild' if @rebuild_id.nil?
+
+      rebuild_response = @service.send_request('command' => 'rebuild', 'rebuildID' => @rebuild_id)
       response_to_result(rebuild_response)
     end
 
     def handle_watch(error, response)
       return @on_rebuild.call(error, nil) if error
-      unless response["errors"].empty?
-        error = BuildFailureError.new(response["errors"], response["warnings"])
+
+      unless response['errors'].empty?
+        error = BuildFailureError.new(response['errors'], response['warnings'])
         @on_rebuild.call(error, nil)
         return
       end
@@ -39,23 +43,18 @@ module Esbuild
     end
 
     def response_to_result(res)
-      unless res["errors"].empty?
-        raise BuildFailureError.new(res["errors"], res["warnings"])
-      end
-      if res["writeToStdout"]
-        $stdout.puts res["writeToStdout"].rstrip
-      end
+      raise BuildFailureError.new(res['errors'], res['warnings']) unless res['errors'].empty?
+
+      $stdout.puts res['writeToStdout'].rstrip if res['writeToStdout']
 
       result = BuildResult.new(res, self)
 
       # Handle incremental rebuilds
-      if res["rebuildID"] && !@rebuild_id
-        @rebuild_id = res["rebuildID"]
-      end
+      @rebuild_id = res['rebuildID'] if res['rebuildID'] && !@rebuild_id
 
       # Handle watch mode
-      if res["watchID"] && !@watch_id
-        @watch_id = res["watchID"]
+      if res['watchID'] && !@watch_id
+        @watch_id = res['watchID']
         if @on_rebuild
           @service.start_watch(@watch_id, ->(error, watch_response) { handle_watch(error, watch_response) })
         end

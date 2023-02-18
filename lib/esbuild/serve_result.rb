@@ -1,8 +1,8 @@
 module Esbuild
   class ServeResult
     def initialize(response, wait, stop)
-      @port = response["port"]
-      @host = response["host"]
+      @port = response['port']
+      @host = response['host']
       @wait = wait
       @stop = stop
       @is_stopped = false
@@ -15,6 +15,7 @@ module Esbuild
 
     def stop
       return if @is_stopped
+
       @is_stopped = true
       @stop.call
     end

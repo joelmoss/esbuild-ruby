@@ -1,10 +1,4 @@
-require "concurrent"
-require "esbuild/stdio_protocol"
-require "esbuild/flags"
-require "esbuild/build_result"
-require "esbuild/serve_result"
-require "esbuild/build_state"
-require "esbuild/transform_result"
+# frozen_string_literal: true
 
 module Esbuild
   class Service
@@ -25,7 +19,7 @@ module Esbuild
       child_stdin, @child_write = create_pipes
 
       bin = binary_path
-      pid = spawn(bin, "--service=#{ESBUILD_VERSION}", "--ping", out: child_stdout, err: :err, in: child_stdin)
+      pid = spawn(bin, "--service=#{ESBUILD_VERSION}", '--ping', out: child_stdout, err: :err, in: child_stdin)
       child_stdin.close
       child_stdout.close
 
@@ -38,17 +32,17 @@ module Esbuild
       opts = Flags.flags_for_build_options(options)
       on_rebuild = opts[:watch]&.fetch(:on_rebuild, nil)
       request = {
-        "command" => "build",
-        "key" => key,
-        "entries" => opts[:entries],
-        "flags" => opts[:flags],
-        "write" => opts[:write],
-        "stdinContents" => opts[:stdin_contents],
-        "stdinResolveDir" => opts[:stdin_resolve_dir],
-        "absWorkingDir" => opts[:abs_working_dir] || Dir.pwd,
-        "incremental" => opts[:incremental],
-        "nodePaths" => opts[:node_paths],
-        "hasOnRebuild" => !!on_rebuild
+        'command' => 'build',
+        'key' => key,
+        'entries' => opts[:entries],
+        'flags' => opts[:flags],
+        'write' => opts[:write],
+        'stdinContents' => opts[:stdin_contents],
+        'stdinResolveDir' => opts[:stdin_resolve_dir],
+        'absWorkingDir' => opts[:abs_working_dir] || Dir.pwd,
+        'incremental' => opts[:incremental],
+        'nodePaths' => opts[:node_paths],
+        'hasOnRebuild' => !!on_rebuild
       }
       serve = serve_options && build_serve_data(serve_options, request)
 
@@ -68,23 +62,21 @@ module Esbuild
     def stop_watch(watch_id)
       @watch_callbacks.delete(watch_id)
       send_request(
-        "command" => "watch-stop",
-        "watchID" => watch_id
+        'command' => 'watch-stop',
+        'watchID' => watch_id
       )
     end
 
     def transform(input, options)
       flags = Flags.flags_for_transform_options(options)
       res = send_request(
-        "command" => "transform",
-        "flags" => flags,
-        "inputFS" => false,
-        "input" => input
+        'command' => 'transform',
+        'flags' => flags,
+        'inputFS' => false,
+        'input' => input
       )
 
-      unless res["errors"].empty?
-        raise BuildFailureError.new(res["errors"], res["warnings"])
-      end
+      raise BuildFailureError.new(res['errors'], res['warnings']) unless res['errors'].empty?
 
       TransformResult.new(res)
     end
@@ -108,9 +100,8 @@ module Esbuild
       offset = 0
       while offset + 4 < @buffer.bytesize
         size = @buffer.getbyte(offset) | (@buffer.getbyte(offset + 1) << 8) | (@buffer.getbyte(offset + 2) << 16) | (@buffer.getbyte(offset + 3) << 24)
-        if offset + 4 + size > @buffer.bytesize
-          break
-        end
+        break if offset + 4 + size > @buffer.bytesize
+
         offset += 4
         handle_incoming_packet(@buffer, offset, size)
         offset += size
@@ -134,65 +125,62 @@ module Esbuild
       Flags.get_flag(options, :serve_dir, String) { |v| request[:serveDir] = v }
       Flags.get_flag(options, :on_request, Proc) { |v| on_request = v }
       raise ArgumentError, "Invalid option in serve() call: #{options.keys.first}" unless options.empty?
-      request[:serve] = {serveID: serve_id}
+
+      request[:serve] = { serveID: serve_id }
       wait = Concurrent::IVar.new
       @serve_callbacks[serve_id] = {
         on_request: on_request,
-        on_wait: ->(error) do
+        on_wait: lambda { |error|
           @serve_callbacks.delete(serve_id)
           if error
             wait.fail StandardError.new(error)
           else
             wait.set
           end
-        end
+        }
       }
 
       {
         wait: wait,
-        stop: -> do
-          send_request("command" => "serve-stop", "serveID" => serve_id)
+        stop: lambda do
+          send_request('command' => 'serve-stop', 'serveID' => serve_id)
         end
       }
     end
 
     def handle_request(id, request)
-      case request["command"]
-      when "ping"
+      case request['command']
+      when 'ping'
         send_response(id, {})
-      when "resolve", "load"
-        callback = @plugin_callbacks[request["key"]]
+      when 'resolve', 'load'
+        callback = @plugin_callbacks[request['key']]
         response = {}
-        if callback
-          response = callback.call(request)
-        end
+        response = callback.call(request) if callback
         send_response(id, response)
-      when "serve-request"
-        callback = @serve_callbacks[request["serveID"]]
+      when 'serve-request'
+        callback = @serve_callbacks[request['serveID']]
         if callback && callback[:on_request]
           on_request = callback[:on_request]
           if on_request.arity == 1
-            on_request.call(request["args"])
+            on_request.call(request['args'])
           else
             on_request.call
           end
         end
         send_response(id, {})
-      when "serve-wait"
-        callback = @serve_callbacks[request["serveID"]]
-        if callback && callback[:on_wait]
-          callback[:on_wait].call(request["error"])
-        end
+      when 'serve-wait'
+        callback = @serve_callbacks[request['serveID']]
+        callback[:on_wait].call(request['error']) if callback && callback[:on_wait]
         send_response(id, {})
-      when "watch-rebuild"
-        callback = @watch_callbacks[request["watchID"]]
-        callback&.call(nil, request["args"])
+      when 'watch-rebuild'
+        callback = @watch_callbacks[request['watchID']]
+        callback&.call(nil, request['args'])
         send_response(id, {})
       else
-        raise "Unknown command #{request["command"]}"
+        raise "Unknown command #{request['command']}"
       end
-    rescue => e
-      send_response(id, {errors: [{text: e.message}]})
+    rescue StandardError => e
+      send_response(id, { errors: [{ text: e.message }] })
     end
 
     def handle_incoming_packet(bytes, offset, size)
@@ -211,8 +199,8 @@ module Esbuild
         handle_request packet.id, packet.value
       else
         callback = @response_callbacks.delete(packet.id)
-        if packet.value["error"]
-          callback.fail(StandardError.new(packet.value["error"]))
+        if packet.value['error']
+          callback.fail(StandardError.new(packet.value['error']))
         else
           callback.set(packet.value)
         end
@@ -224,13 +212,13 @@ module Esbuild
       loop do
         done = Process.waitpid(pid, Process::WNOHANG)
         if done
-          error = StandardError.new("Closed")
+          error = StandardError.new('Closed')
           close_callbacks(error)
           break
         end
 
         begin
-          chunk = child_read.read_nonblock(16384, buffer)
+          chunk = child_read.read_nonblock(16_384, buffer)
           read_from_stdout chunk
         rescue IO::WaitReadable
           IO.select([child_read])
@@ -250,7 +238,7 @@ module Esbuild
     end
 
     def binary_path
-      ENV["ESBUILD_BINARY_PATH"] || File.expand_path("../../bin/esbuild", __dir__)
+      ENV['ESBUILD_BINARY_PATH'] || File.expand_path('../../bin/esbuild', __dir__)
     end
 
     def create_pipes
@@ -262,19 +250,18 @@ module Esbuild
   end
 
   class BuildFailureError < StandardError
-    attr_reader :errors
-    attr_reader :warnings
+    attr_reader :errors, :warnings
 
     def initialize(errors, warnings)
       @errors = errors
       @warnings = warnings
-      summary = ""
+      summary = ''
       unless errors.empty?
         limit = 5
         details = errors.slice(0, limit + 1).each_with_index.map do |error, index|
           transform_error(error, index, limit)
         end.join
-        summary = " with #{errors.size} error#{errors.size > 1 ? "s" : ""}:#{details}"
+        summary = " with #{errors.size} error#{errors.size > 1 ? 's' : ''}:#{details}"
       end
 
       super "Build failed#{summary}"
@@ -284,9 +271,11 @@ module Esbuild
 
     def transform_error(error, index, limit)
       return "\n..." if index == limit
-      location = error["location"]
-      return "\nerror: #{error["text"]}" unless location
-      "\n#{location["file"]}:#{location["line"]}:#{location["column"]}: error: #{error["text"]}"
+
+      location = error['location']
+      return "\nerror: #{error['text']}" unless location
+
+      "\n#{location['file']}:#{location['line']}:#{location['column']}: error: #{error['text']}"
     end
   end
 end

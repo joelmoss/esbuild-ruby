@@ -1,13 +1,12 @@
-require "forwardable"
-require "json"
+require 'forwardable'
+require 'json'
 
 module Esbuild
   class BuildResult
     extend Forwardable
 
     class OutputFile
-      attr_reader :path
-      attr_reader :contents
+      attr_reader :path, :contents
 
       def initialize(path, contents)
         @path = path
@@ -22,49 +21,47 @@ module Esbuild
     class Metafile
       class Input < Struct.new(:bytes, :imports)
         def initialize(hash)
-          super(hash["bytes"], hash["imports"])
+          super(hash['bytes'], hash['imports'])
         end
       end
 
       class Output < Struct.new(:imports, :exports, :entry_point, :inputs)
         class Input < Struct.new(:bytes_in_output)
           def initialize(hash)
-            super(hash["bytesInOutput"])
+            super(hash['bytesInOutput'])
           end
         end
 
         def initialize(hash)
-          inputs = hash["inputs"].transform_values! { |v| Input.new(v) }
-          super(hash["imports"], hash["exports"], hash["entryPoint"], inputs)
+          inputs = hash['inputs'].transform_values! { |v| Input.new(v) }
+          super(hash['imports'], hash['exports'], hash['entryPoint'], inputs)
         end
       end
 
-      attr_reader :inputs
-      attr_reader :outputs
+      attr_reader :inputs, :outputs
 
       def initialize(json)
         hash = JSON.parse(json)
-        @inputs = hash["inputs"].transform_values! { |v| Input.new(v) }
-        @outputs = hash["outputs"].transform_values! { |v| Output.new(v) }
+        @inputs = hash['inputs'].transform_values! { |v| Input.new(v) }
+        @outputs = hash['outputs'].transform_values! { |v| Output.new(v) }
       end
     end
 
-    attr_reader :warnings
-    attr_reader :output_files
-    attr_reader :metafile
+    attr_reader :warnings, :output_files, :metafile
+
     def_delegators :@state, :stop, :rebuild, :dispose
 
     def initialize(response, state)
       @state = state
-      @warnings = response["warnings"] # TODO: symbolize keys
+      @warnings = response['warnings'] # TODO: symbolize keys
 
-      if response["outputFiles"]
-        @output_files = response["outputFiles"].map { |f| OutputFile.new(f["path"], f["contents"]) }
+      if response['outputFiles']
+        @output_files = response['outputFiles'].map { |f| OutputFile.new(f['path'], f['contents']) }
       end
 
-      if response["metafile"]
-        @metafile = Metafile.new(response["metafile"])
-      end
+      return unless response['metafile']
+
+      @metafile = Metafile.new(response['metafile'])
     end
   end
 end

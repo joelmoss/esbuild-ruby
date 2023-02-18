@@ -1,9 +1,10 @@
 # frozen_string_literal: true
 
-require_relative "esbuild/version"
-require_relative "esbuild/packet"
-require_relative "esbuild/stdio_protocol"
-require_relative "esbuild/service"
+require 'zeitwerk'
+require 'concurrent'
+
+loader = Zeitwerk::Loader.for_gem
+loader.setup
 
 module Esbuild
   class << self
