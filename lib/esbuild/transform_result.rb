@@ -5,9 +5,9 @@ module Esbuild
     attr_reader :code, :map, :warnings
 
     def initialize(result)
-      @code = read_file(result['codeFS'], result['code'])
-      @map = read_file(result['mapFS'], result['map'])
-      @warnings = result['warnings']
+      @code = read_file(result["codeFS"], result["code"])
+      @map = read_file(result["mapFS"], result["map"])
+      @warnings = result["warnings"]
     end
 
     private

@@ -66,7 +66,7 @@ module Esbuild
       end
 
       def read8
-        raise ArgumentError, 'Reading past buffer' if @offset >= @end
+        raise ArgumentError, "Reading past buffer" if @offset >= @end
 
         byte = @buf.getbyte(@offset)
         @offset += 1
@@ -80,7 +80,7 @@ module Esbuild
 
     class PacketEncoder
       def initialize
-        @format = ''
+        @format = ""
         @elements = []
         @size = 0
       end
@@ -131,19 +131,19 @@ module Esbuild
         string = string.to_s
         write32 string.bytesize
         @elements << string
-        @format << 'a*'
+        @format << "a*"
         @size += string.bytesize
       end
 
       def write32(value)
         @elements << value
-        @format += 'L<'
+        @format += "L<"
         @size += 4
       end
 
       def write8(value)
         @elements << value
-        @format += 'C'
+        @format += "C"
         @size += 1
       end
     end

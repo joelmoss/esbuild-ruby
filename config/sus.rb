@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-require 'esbuild'
-require 'bundler'
+require "esbuild"
+require "bundler"
 
 Bundler.require :test
 

@@ -1,6 +1,6 @@
-require 'fileutils'
-require 'open3'
-require 'net/https'
+require "fileutils"
+require "open3"
+require "net/https"
 
 module Esbuild
   class BinaryInstaller
@@ -16,8 +16,8 @@ module Esbuild
 
     def install
       tempfile = "#{@path}__"
-      if ENV['ESBUILD_BINARY_PATH']
-        FileUtils.cp(ENV['ESBUILD_BINARY_PATH'], tempfile)
+      if ENV["ESBUILD_BINARY_PATH"]
+        FileUtils.cp(ENV["ESBUILD_BINARY_PATH"], tempfile)
       else
         # TODO: use cache
         download(tempfile)
@@ -39,7 +39,7 @@ module Esbuild
       http.start do
         request = Net::HTTP::Get.new uri
         http.request(request) do |response|
-          File.open(target, 'wb', 0o755) do |f|
+          File.open(target, "wb", 0o755) do |f|
             response.read_body(f)
           end
         end
@@ -47,7 +47,7 @@ module Esbuild
     end
 
     def validate_binary_version!(path)
-      version, = Open3.capture2(path, '--version')
+      version, = Open3.capture2(path, "--version")
       version = version.strip
       raise "Expected #{ESBUILD_VERSION} but got #{version}" unless ESBUILD_VERSION == version
     end
@@ -55,11 +55,11 @@ module Esbuild
     def package_from_platform(platform)
       case platform
       when /^x86_64-darwin/
-        'esbuild-darwin-64'
+        "esbuild-darwin-64"
       when /^arm64-darwin/
-        'esbuild-darwin-arm64'
-      when 'x86_64-linux'
-        'esbuild-linux-64'
+        "esbuild-darwin-arm64"
+      when "x86_64-linux"
+        "esbuild-linux-64"
       end
     end
   end
